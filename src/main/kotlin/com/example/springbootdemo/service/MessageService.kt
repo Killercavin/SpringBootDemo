@@ -2,6 +2,7 @@ package com.example.springbootdemo.service
 
 import com.example.springbootdemo.dto.CreateMessageRequest
 import com.example.springbootdemo.dto.MessageResponseDTO
+import com.example.springbootdemo.dto.UpdateMessageRequest
 import com.example.springbootdemo.dto.toDTO
 import com.example.springbootdemo.entity.Message
 import com.example.springbootdemo.repository.MessageRepository
@@ -16,24 +17,36 @@ class MessageService(private val repository: MessageRepository) {
         return repository.findAll()
     }
 
-    // fetch message by id
-    fun fetchMessageById(id: String): Message? {
+    // fetch a message by ID
+    fun messageById(id: String): Message? {
         return repository.findByIdOrNull(id)
     }
 
-    // add message
+    // create a message
     fun createMessage(request: CreateMessageRequest): MessageResponseDTO {
         val newMessage = Message(
-            author = request.author,
-            text = request.text
+            text = request.text,
+            author = request.author
         )
 
-        val saved = repository.save(newMessage)
-        return saved.toDTO()
+        return repository.save(newMessage).toDTO()
+    }
+
+    // update a message
+    fun modifyMessage(id: String, request: UpdateMessageRequest): Message? {
+        val message = messageById(id) ?: return null
+
+        message.text = request.text
+
+        return repository.save(message)
     }
 
     // delete a message
-    fun removeMessage(id: String) {
-        repository.deleteById(id)
+    fun removeMessage(id: String): Boolean {
+        val exists = repository.existsById(id)
+        if (exists) {
+            repository.deleteById(id)
+        }
+        return exists
     }
 }

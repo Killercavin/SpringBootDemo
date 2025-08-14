@@ -2,19 +2,15 @@ package com.example.springbootdemo.controller
 
 import com.example.springbootdemo.dto.CreateMessageRequest
 import com.example.springbootdemo.dto.MessageResponseDTO
-import com.example.springbootdemo.exception.EmptyMessagesException
-import com.example.springbootdemo.entity.Message
+import com.example.springbootdemo.dto.UpdateMessageRequest
 import com.example.springbootdemo.service.MessageService
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/messages")
+@RequestMapping("/api")
 class MessageController(
     private val messageService: MessageService
 ) {
@@ -23,27 +19,76 @@ class MessageController(
         return "Spring Boot Framework"
     }
 
-    @GetMapping("/all")
-    fun getAllMessages(): List<Message> {
+    // GET all messages
+    @GetMapping("/messages/all")
+    fun getAllMessages(): ResponseEntity<Map<String, Any>?> {
         val messages = messageService.fetchMessages()
-
-        return messages.ifEmpty {
-            throw EmptyMessagesException("Empty messages")
+        return if (messages.isEmpty()) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "No messages found"))
+        } else {
+            ResponseEntity.status(HttpStatus.OK).body(mapOf("data" to messages))
         }
     }
 
-    @GetMapping("/{id}")
-    fun getMessageById(@PathVariable id: String): Message {
-        return messageService.fetchMessageById(id) ?: throw EmptyMessagesException("Message with id $id not found")
+    // GET a message by ID
+    @GetMapping("/message/id")
+    fun missingId(): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.badRequest()
+            .body(mapOf("error" to "Message ID is required"))
     }
 
-    @PostMapping
-    fun addMessage(@RequestBody request: CreateMessageRequest): MessageResponseDTO {
-        return messageService.createMessage(request)
+    @GetMapping("/message/id/{id}")
+    fun getById(@PathVariable id: String): ResponseEntity<Map<String, Any>?>{
+        val message = messageService.messageById(id)
+
+        return if (message == null) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "Message with id $id not found"))
+        } else {
+            ResponseEntity.ok(mapOf("data" to message))
+        }
     }
 
-    @DeleteMapping("/{id}")
-    fun deleteMessage(@PathVariable id: String) {
-        messageService.removeMessage(id)
+    // POST a message
+    @PostMapping("/message/create")
+    fun addMessage(@Valid @RequestBody createMessageRequest: CreateMessageRequest):
+            ResponseEntity<MessageResponseDTO?> {
+        val createdMessage =  messageService.createMessage(createMessageRequest)
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdMessage)
     }
+
+    // PATCH a message
+    @PatchMapping("/message/update/id")
+    fun updateMessageMissingId(): ResponseEntity<Map<String, Any>> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to "Message ID is required"))
+    }
+
+    @PatchMapping("/message/update/id/{id}")
+    fun updateMessage(@PathVariable id: String, @Valid @RequestBody request: UpdateMessageRequest):
+            ResponseEntity<Map<String, Any>> {
+        val updatedMessage = messageService.modifyMessage(id, request)
+
+        return if (updatedMessage == null) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "Message with id $id not found"))
+        } else {
+            ResponseEntity.ok(mapOf("data" to updatedMessage))
+        }
+    }
+
+    // DELETE a message
+    @DeleteMapping("/message/delete/id")
+    fun deleteMessageMissingId(): ResponseEntity<Map<String, Any>> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(mapOf("error" to "Missing message ID"))
+    }
+
+    @DeleteMapping("/message/delete/id/{id}")
+    fun deleteMessage(@PathVariable id: String): ResponseEntity<Map<String, Any>> {
+        val deleted = messageService.removeMessage(id)
+        return if (!deleted) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "Message with id $id not found"))
+        } else {
+            ResponseEntity.noContent().build()
+        }
+    }
+
 }
