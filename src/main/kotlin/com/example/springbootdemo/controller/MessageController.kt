@@ -23,11 +23,7 @@ class MessageController(
     @GetMapping("/messages/all")
     fun getAllMessages(): ResponseEntity<Map<String, Any>?> {
         val messages = messageService.fetchMessages()
-        return if (messages.isEmpty()) {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).body(mapOf("error" to "No messages found"))
-        } else {
-            ResponseEntity.status(HttpStatus.OK).body(mapOf("data" to messages))
-        }
+        return ResponseEntity.ok(mapOf("data" to messages))
     }
 
     // GET a message by ID
